@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: example-optional-integration
+  namespace: "###ZARF_VAR_TARGET_NAMESPACE###"
+data:
+  enabled: "true"

@@ -55,9 +55,12 @@ ZARF_INSECURE=false \
 ./scripts/publish-all.sh
 ```
 
-See [AGENTS.md](AGENTS.md) for Zot installation, registry registration,
-single-package and multi-package repository scaffolding, package deployment,
-component selection, and verification procedures.
+Repository behavior is defined in [AGENTS.md](AGENTS.md). The reusable
+[Zarf package workflow](skills/zarf-package-workflow/SKILL.md) contains
+single-package and multi-package scaffolding guidance, while the detailed
+[VerteX and Zot runbook](skills/zarf-package-workflow/references/vertex-zarf-runbook.md)
+covers registry registration, package deployment, component selection, and
+verification procedures.
 
 ## Package source versions
 
@@ -72,3 +75,12 @@ component selection, and verification procedures.
 
 The examples are deployment demonstrations, not a complete Platform One Big
 Bang distribution, an authorization boundary, or evidence of compliance.
+
+## Reuse the workflow
+
+The repository includes a portable Codex skill at
+`skills/zarf-package-workflow`. It contains working starter assets for both
+repository models and a detailed VerteX/Zot reference. To use it outside this
+repository, ask Codex to install the `zarf-package-workflow` skill from the
+`skills/zarf-package-workflow` directory of this GitHub repository. Access to
+the private repository must already be configured on the target machine.

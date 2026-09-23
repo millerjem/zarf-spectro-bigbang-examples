@@ -1,0 +1,27 @@
+kind: ZarfPackageConfig
+metadata:
+  name: example-package
+  description: Replace with the package capability.
+  version: 0.1.0
+
+variables:
+  - name: TARGET_NAMESPACE
+    description: Namespace for example resources.
+    default: example-system
+
+components:
+  - name: foundation
+    description: Required package foundation.
+    required: true
+    manifests:
+      - name: foundation
+        files:
+          - manifests/foundation.yaml
+
+  - name: optional-integration
+    description: Optional companion capability.
+    default: false
+    manifests:
+      - name: optional-integration
+        files:
+          - manifests/optional-integration.yaml

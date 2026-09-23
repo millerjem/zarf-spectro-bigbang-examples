@@ -1,0 +1,4 @@
+interface:
+  display_name: "Zarf Package Workflow"
+  short_description: "Build and operate reusable Zarf packages"
+  default_prompt: "Use $zarf-package-workflow to scaffold or operate a Zarf package repository."

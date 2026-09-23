@@ -1,0 +1,8 @@
+dist/
+*.tar.zst
+.DS_Store
+.env
+.env.*
+*.key
+*.pem
+*kubeconfig*
