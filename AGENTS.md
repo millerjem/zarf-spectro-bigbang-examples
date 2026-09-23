@@ -389,7 +389,7 @@ Use this layout:
 ```text
 example-package/
 ├── .gitignore
-├── AGENT.md
+├── AGENTS.md
 ├── README.md
 ├── zarf.yaml
 ├── values/
@@ -427,7 +427,7 @@ Use this repository as the reference layout:
 ```text
 zarf-packages/
 ├── .gitignore
-├── AGENT.md
+├── AGENTS.md
 ├── README.md
 ├── packages/
 │   ├── package-one/
@@ -481,7 +481,7 @@ Every scaffold must include:
   environment files, and private key formats.
 - A README package matrix showing required and optional components, variables,
   source versions, build commands, registry references, and limitations.
-- An `AGENT.md` containing the applicable parts of this guide.
+- An `AGENTS.md` containing the applicable parts of this guide.
 - Executable validation, build, and publication scripts with
   `set -euo pipefail`.
 - Source provenance for vendored charts and an explicit statement when a chart
