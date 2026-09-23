@@ -55,8 +55,9 @@ ZARF_INSECURE=false \
 ./scripts/publish-all.sh
 ```
 
-See [AGENT.md](AGENT.md) for Zot installation, registry registration, package
-deployment, component selection, and verification procedures.
+See [AGENT.md](AGENT.md) for Zot installation, registry registration,
+single-package and multi-package repository scaffolding, package deployment,
+component selection, and verification procedures.
 
 ## Package source versions
 
