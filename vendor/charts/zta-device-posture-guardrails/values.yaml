@@ -1,0 +1,13 @@
+kyverno:
+  enabled: true
+
+policy:
+  validationFailureAction: "Audit"
+  background: true
+  podSecurityLevel: "restricted"
+  podSecurityVersion: "latest"
+  excludeNamespaces:
+    - "kube-system"
+    - "kube-public"
+    - "kube-node-lease"
+    - "kyverno"

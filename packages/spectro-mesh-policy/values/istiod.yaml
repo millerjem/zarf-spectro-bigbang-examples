@@ -1,0 +1,7 @@
+pilot:
+  autoscaleEnabled: false
+  replicaCount: ###ZARF_VAR_ISTIO_PILOT_REPLICAS###
+meshConfig:
+  accessLogFile: /dev/stdout
+  enableTracing: true
+

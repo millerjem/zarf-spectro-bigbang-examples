@@ -1,0 +1,118 @@
+kind: ZarfPackageConfig
+metadata:
+  name: zta-baseline
+  description: Miller ZTA Palette packs expressed side by side as selectable Zarf components.
+  version: 0.1.0
+
+variables:
+  - name: KYVERNO_REPLICAS
+    description: Replica count for each Kyverno controller.
+    default: "1"
+  - name: ZTA_POLICY_MODE
+    description: Kyverno validation action; begin with Audit and promote to Enforce after review.
+    default: Audit
+  - name: ZTA_TARGET_NAMESPACE
+    description: Namespace managed by the microsegmentation and Istio enrollment components.
+    default: zta-workloads
+  - name: ZTA_POD_SECURITY_LEVEL
+    description: Kubernetes Pod Security level required by the device-posture policy.
+    default: restricted
+
+components:
+  - name: kyverno
+    description: Required Spectro community Kyverno policy engine.
+    required: true
+    charts:
+      - name: kyverno
+        namespace: kyverno
+        version: 3.8.2
+        localPath: ../../vendor/charts/kyverno-3.8.2.tgz
+        valuesFiles:
+          - values/kyverno.yaml
+    images:
+      - ghcr.io/kyverno/readiness-checker:v1.18.2
+      - reg.kyverno.io/kyverno/background-controller:v1.18.2
+      - reg.kyverno.io/kyverno/cleanup-controller:v1.18.2
+      - reg.kyverno.io/kyverno/kyverno-cli:v1.18.2
+      - reg.kyverno.io/kyverno/kyverno:v1.18.2
+      - reg.kyverno.io/kyverno/kyvernopre:v1.18.2
+      - reg.kyverno.io/kyverno/reports-controller:v1.18.2
+
+  - name: zta-identity
+    description: Workload identity guardrails.
+    default: false
+    charts:
+      - name: zta-identity-guardrails
+        namespace: kyverno
+        version: 0.1.1
+        localPath: ../../vendor/charts/zta-identity-guardrails
+        valuesFiles:
+          - values/policy.yaml
+
+  - name: zta-device-posture
+    description: Pod security posture guardrails.
+    default: false
+    charts:
+      - name: zta-device-posture-guardrails
+        namespace: kyverno
+        version: 0.1.1
+        localPath: ../../vendor/charts/zta-device-posture-guardrails
+        valuesFiles:
+          - values/device-posture.yaml
+
+  - name: zta-network
+    description: Default-deny microsegmentation with explicit DNS and same-namespace access.
+    default: false
+    charts:
+      - name: zta-network-microsegmentation
+        namespace: "###ZARF_VAR_ZTA_TARGET_NAMESPACE###"
+        version: 0.1.1
+        localPath: ../../vendor/charts/zta-network-microsegmentation
+        valuesFiles:
+          - values/network.yaml
+
+  - name: zta-workload
+    description: Resource and image hygiene guardrails.
+    default: false
+    charts:
+      - name: zta-workload-hardening
+        namespace: kyverno
+        version: 0.1.1
+        localPath: ../../vendor/charts/zta-workload-hardening
+        valuesFiles:
+          - values/policy.yaml
+
+  - name: zta-data
+    description: Data classification, ownership, and immutable-secret guardrails.
+    default: false
+    charts:
+      - name: zta-data-protection-guardrails
+        namespace: kyverno
+        version: 0.1.1
+        localPath: ../../vendor/charts/zta-data-protection-guardrails
+        valuesFiles:
+          - values/policy.yaml
+
+  - name: istio-namespace-enrollment
+    description: Optional enrollment of the target namespace in Istio sidecar injection.
+    default: false
+    charts:
+      - name: istio-namespace-injection
+        namespace: "###ZARF_VAR_ZTA_TARGET_NAMESPACE###"
+        version: 0.1.1
+        localPath: ../../vendor/charts/istio-namespace-injection
+        valuesFiles:
+          - values/istio-namespace.yaml
+
+  - name: oscal-kyverno
+    description: Optional OSCAL-to-Kyverno policy generator and traceability examples.
+    default: false
+    charts:
+      - name: oscal-kyverno-operator
+        namespace: oscal-system
+        version: 0.1.0
+        localPath: ../../vendor/charts/oscal-kyverno-operator
+        valuesFiles:
+          - values/oscal.yaml
+    images:
+      - ghcr.io/flant/shell-operator:v1.20.5

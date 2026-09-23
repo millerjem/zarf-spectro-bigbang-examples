@@ -1,0 +1,57 @@
+{{- if .Values.kyverno.enabled }}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: {{ include "zta-data-protection-guardrails.name" . | quote }}
+  labels:
+    {{- include "zta-data-protection-guardrails.labels" . | nindent 4 }}
+spec:
+  validationFailureAction: {{ .Values.policy.validationFailureAction | quote }}
+  background: {{ .Values.policy.background }}
+  rules:
+    {{- if .Values.controls.requireDataClassification }}
+    - name: require-data-classification
+      match:
+        any:
+          - resources:
+              kinds:
+                - Secret
+                - PersistentVolumeClaim
+      {{- include "zta-data-protection-guardrails.exclude" . | nindent 6 }}
+      validate:
+        message: "Secrets and PVCs must carry a data classification label."
+        pattern:
+          metadata:
+            labels:
+              {{ .Values.labels.dataClassification | quote }}: "?*"
+    {{- end }}
+    {{- if .Values.controls.requireOwnerLabel }}
+    - name: require-data-owner
+      match:
+        any:
+          - resources:
+              kinds:
+                - Secret
+                - PersistentVolumeClaim
+      {{- include "zta-data-protection-guardrails.exclude" . | nindent 6 }}
+      validate:
+        message: "Secrets and PVCs must carry a data owner label."
+        pattern:
+          metadata:
+            labels:
+              {{ .Values.labels.dataOwner | quote }}: "?*"
+    {{- end }}
+    {{- if .Values.controls.requireImmutableSecrets }}
+    - name: require-immutable-secrets
+      match:
+        any:
+          - resources:
+              kinds:
+                - Secret
+      {{- include "zta-data-protection-guardrails.exclude" . | nindent 6 }}
+      validate:
+        message: "Secrets must set immutable: true unless an exception process is used."
+        pattern:
+          immutable: true
+    {{- end }}
+{{- end }}

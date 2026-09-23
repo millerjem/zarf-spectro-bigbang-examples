@@ -1,0 +1,60 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: oscalkyvernomappings.compliance.spectrocloud.com
+spec:
+  group: compliance.spectrocloud.com
+  scope: Cluster
+  names:
+    plural: oscalkyvernomappings
+    singular: oscalkyvernomapping
+    kind: OSCALKyvernoMapping
+    shortNames:
+      - oscalmap
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                mappings:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - name
+                      - controlIds
+                      - template
+                    properties:
+                      name:
+                        type: string
+                      controlIds:
+                        type: array
+                        items:
+                          type: string
+                      template:
+                        type: string
+                      pillar:
+                        type: string
+                      coverage:
+                        type: string
+                        enum:
+                          - enforced
+                          - partial
+                          - inherited
+                          - manual
+                      parameters:
+                        type: object
+                        x-kubernetes-preserve-unknown-fields: true
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+      additionalPrinterColumns:
+        - name: First Mapping
+          type: string
+          jsonPath: .spec.mappings[0].name

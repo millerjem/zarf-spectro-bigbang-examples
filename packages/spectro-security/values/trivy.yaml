@@ -1,0 +1,12 @@
+replicaCount: 1
+persistence:
+  enabled: true
+  storageClass: "###ZARF_VAR_TRIVY_STORAGE_CLASS###"
+  accessMode: ReadWriteOnce
+  size: "###ZARF_VAR_TRIVY_STORAGE_SIZE###"
+rbac:
+  create: true
+  pspEnabled: false
+service:
+  type: ClusterIP
+

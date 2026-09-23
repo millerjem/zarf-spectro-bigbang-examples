@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "oscal-kyverno-operator.name" . | quote }}
+  labels:
+    {{- include "oscal-kyverno-operator.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.operator.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "oscal-kyverno-operator.name" . | quote }}
+      app.kubernetes.io/instance: {{ .Release.Name | quote }}
+  template:
+    metadata:
+      labels:
+        {{- include "oscal-kyverno-operator.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "oscal-kyverno-operator.serviceAccountName" . | quote }}
+      containers:
+        - name: shell-operator
+          image: "{{ .Values.operator.image.repository }}:{{ .Values.operator.image.tag }}"
+          imagePullPolicy: {{ .Values.operator.image.pullPolicy | quote }}
+          env:
+            - name: SHELL_OPERATOR_HOOKS_DIR
+              value: /hooks
+            - name: SHELL_OPERATOR_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          volumeMounts:
+            - name: hooks
+              mountPath: /hooks
+              readOnly: true
+          resources:
+            {{- toYaml .Values.operator.resources | nindent 12 }}
+      nodeSelector:
+        {{- toYaml .Values.operator.nodeSelector | nindent 8 }}
+      affinity:
+        {{- toYaml .Values.operator.affinity | nindent 8 }}
+      tolerations:
+        {{- toYaml .Values.operator.tolerations | nindent 8 }}
+      volumes:
+        - name: hooks
+          configMap:
+            name: {{ printf "%s-hooks" (include "oscal-kyverno-operator.name" .) | quote }}
+            defaultMode: 0555

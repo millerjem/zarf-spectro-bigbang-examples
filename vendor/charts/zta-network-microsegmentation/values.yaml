@@ -1,0 +1,21 @@
+namespace:
+  name: "zta-workloads"
+  create: true
+  labels: {}
+
+networkPolicy:
+  enabled: true
+  defaultDenyIngress: true
+  defaultDenyEgress: true
+
+dnsEgress:
+  enabled: true
+  namespace: "kube-system"
+  ports:
+    - 53
+
+sameNamespaceTraffic:
+  enabled: true
+
+allowedIngressNamespaces: []
+allowedEgressCIDRs: []

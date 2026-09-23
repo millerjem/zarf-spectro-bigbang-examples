@@ -1,0 +1,61 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: oscalpolicies.compliance.spectrocloud.com
+spec:
+  group: compliance.spectrocloud.com
+  scope: Cluster
+  names:
+    plural: oscalpolicies
+    singular: oscalpolicy
+    kind: OSCALPolicy
+    shortNames:
+      - oscalpol
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                sourceDocument:
+                  type: string
+                mappingRef:
+                  type: string
+                controlIds:
+                  type: array
+                  items:
+                    type: string
+                enforcement:
+                  type: string
+                  enum:
+                    - Audit
+                    - Enforce
+                template:
+                  type: string
+                pillar:
+                  type: string
+                coverage:
+                  type: string
+                renderedPolicy:
+                  type: string
+                parameters:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+      additionalPrinterColumns:
+        - name: Document
+          type: string
+          jsonPath: .spec.sourceDocument
+        - name: Enforcement
+          type: string
+          jsonPath: .spec.enforcement
+        - name: Template
+          type: string
+          jsonPath: .spec.template

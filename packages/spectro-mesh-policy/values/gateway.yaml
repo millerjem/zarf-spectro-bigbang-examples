@@ -1,0 +1,8 @@
+replicaCount: ###ZARF_VAR_ISTIO_GATEWAY_REPLICAS###
+autoscaling:
+  enabled: true
+  minReplicas: ###ZARF_VAR_ISTIO_GATEWAY_REPLICAS###
+  maxReplicas: 5
+service:
+  type: "###ZARF_VAR_ISTIO_GATEWAY_TYPE###"
+

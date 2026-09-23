@@ -1,0 +1,13 @@
+namespace:
+  name: "sample-app"
+  create: true
+  labels: {}
+  annotations: {}
+
+istio:
+  injection:
+    enabled: true
+    labelKey: "istio-injection"
+    labelValue: "enabled"
+
+managedBy: "spectrocloud"

@@ -1,0 +1,6 @@
+policy:
+  validationFailureAction: "###ZARF_VAR_ZTA_POLICY_MODE###"
+  background: true
+  podSecurityLevel: "###ZARF_VAR_ZTA_POD_SECURITY_LEVEL###"
+  podSecurityVersion: latest
+

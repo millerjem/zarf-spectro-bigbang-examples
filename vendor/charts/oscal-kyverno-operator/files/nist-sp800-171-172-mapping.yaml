@@ -1,0 +1,668 @@
+apiVersion: compliance.spectrocloud.com/v1alpha1
+kind: OSCALKyvernoMapping
+metadata:
+  name: nist-sp800-171-172-mapping
+spec:
+  mappings:
+    - name: nist-171-service-account
+      controlIds:
+        - SP_800_171_03.01.01
+        - SP_800_171_03.01.02
+        - SP_800_171_03.01.05
+        - "03.01.01"
+        - "03.01.02"
+        - "03.01.05"
+      template: require-named-service-account
+      pillar: identity
+      coverage: partial
+      parameters:
+        background: true
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-171-token-opt-out
+      controlIds:
+        - SP_800_171_03.01.05
+        - SP_800_171_03.05.01
+        - SP_800_171_03.05.12
+        - "03.01.05"
+        - "03.05.01"
+        - "03.05.12"
+      template: require-service-account-token-opt-out
+      pillar: identity
+      coverage: partial
+      parameters:
+        background: true
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-171-identity-owner
+      controlIds:
+        - SP_800_171_03.01.01
+        - SP_800_171_03.06.02
+        - SP_800_171_03.15.02
+        - "03.01.01"
+        - "03.06.02"
+        - "03.15.02"
+      template: require-identity-owner-label
+      pillar: identity
+      coverage: partial
+      parameters:
+        background: true
+        identityOwnerLabel: cui.spectrocloud.com/identity-owner
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-171-audit-evidence
+      controlIds:
+        - SP_800_171_03.03.01
+        - SP_800_171_03.03.02
+        - SP_800_171_03.03.03
+        - SP_800_171_03.14.06
+        - "03.03.01"
+        - "03.03.02"
+        - "03.03.03"
+        - "03.14.06"
+      template: require-workload-label
+      pillar: visibility-and-analytics
+      coverage: partial
+      parameters:
+        background: true
+        ruleName: require-audit-evidence-label
+        labelName: cui.spectrocloud.com/audit-evidence
+        labelValue: "?*"
+        message: Workloads must carry audit or logging evidence metadata for CUI traceability.
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-171-change-evidence
+      controlIds:
+        - SP_800_171_03.04.03
+        - SP_800_171_03.04.05
+        - SP_800_171_03.15.02
+        - "03.04.03"
+        - "03.04.05"
+        - "03.15.02"
+      template: require-workload-label
+      pillar: governance
+      coverage: partial
+      parameters:
+        background: true
+        ruleName: require-change-ticket-label
+        labelName: cui.spectrocloud.com/change-ticket
+        labelValue: "?*"
+        message: Workloads must reference approved change evidence before deployment.
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-171-pod-security
+      controlIds:
+        - SP_800_171_03.04.02
+        - SP_800_171_03.04.06
+        - SP_800_171_03.04.12
+        - SP_800_171_03.13.04
+        - SP_800_171_03.14.02
+        - "03.04.02"
+        - "03.04.06"
+        - "03.04.12"
+        - "03.13.04"
+        - "03.14.02"
+      template: require-pod-security-posture
+      pillar: devices
+      coverage: partial
+      parameters:
+        background: true
+        podSecurityLevel: restricted
+        podSecurityVersion: latest
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-171-resource-boundaries
+      controlIds:
+        - SP_800_171_03.04.02
+        - SP_800_171_03.04.06
+        - "03.04.02"
+        - "03.04.06"
+      template: require-resource-requests-and-limits
+      pillar: applications-and-workloads
+      coverage: partial
+      parameters:
+        background: true
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-171-versioned-images
+      controlIds:
+        - SP_800_171_03.04.08
+        - SP_800_171_03.14.01
+        - SP_800_171_03.17.03
+        - "03.04.08"
+        - "03.14.01"
+        - "03.17.03"
+      template: disallow-latest-image-tag
+      pillar: applications-and-workloads
+      coverage: partial
+      parameters:
+        background: true
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-171-always-pull-images
+      controlIds:
+        - SP_800_171_03.04.08
+        - SP_800_171_03.14.01
+        - "03.04.08"
+        - "03.14.01"
+      template: require-always-pull-images
+      pillar: applications-and-workloads
+      coverage: partial
+      parameters:
+        background: true
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-171-data-classification
+      controlIds:
+        - SP_800_171_03.04.11
+        - SP_800_171_03.08.04
+        - SP_800_171_03.14.08
+        - SP_800_171_03.15.02
+        - "03.04.11"
+        - "03.08.04"
+        - "03.14.08"
+        - "03.15.02"
+      template: require-data-classification
+      pillar: data
+      coverage: partial
+      parameters:
+        background: true
+        dataClassificationLabel: cui.spectrocloud.com/data-classification
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-171-data-owner
+      controlIds:
+        - SP_800_171_03.04.10
+        - SP_800_171_03.04.11
+        - SP_800_171_03.15.02
+        - "03.04.10"
+        - "03.04.11"
+        - "03.15.02"
+      template: require-data-owner
+      pillar: data
+      coverage: partial
+      parameters:
+        background: true
+        dataOwnerLabel: cui.spectrocloud.com/data-owner
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-171-immutable-secrets
+      controlIds:
+        - SP_800_171_03.13.08
+        - SP_800_171_03.13.11
+        - SP_800_171_03.14.08
+        - "03.13.08"
+        - "03.13.11"
+        - "03.14.08"
+      template: require-immutable-secrets
+      pillar: data
+      coverage: partial
+      parameters:
+        background: true
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-171-boundary-evidence
+      controlIds:
+        - SP_800_171_03.01.03
+        - SP_800_171_03.13.01
+        - SP_800_171_03.13.06
+        - SP_800_171_03.13.15
+        - "03.01.03"
+        - "03.13.01"
+        - "03.13.06"
+        - "03.13.15"
+      template: require-workload-label
+      pillar: networks
+      coverage: partial
+      parameters:
+        background: true
+        ruleName: require-boundary-review-label
+        labelName: cui.spectrocloud.com/boundary-reviewed
+        labelValue: "true"
+        message: Workloads must carry network boundary review evidence for CUI flows.
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-171-vulnerability-evidence
+      controlIds:
+        - SP_800_171_03.11.02
+        - SP_800_171_03.14.01
+        - SP_800_171_03.14.03
+        - "03.11.02"
+        - "03.14.01"
+        - "03.14.03"
+      template: require-workload-label
+      pillar: visibility-and-analytics
+      coverage: partial
+      parameters:
+        background: true
+        ruleName: require-vulnerability-scan-label
+        labelName: cui.spectrocloud.com/vulnerability-scan
+        labelValue: "?*"
+        message: Workloads must carry vulnerability scan evidence metadata.
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-171-supply-chain-evidence
+      controlIds:
+        - SP_800_171_03.04.08
+        - SP_800_171_03.17.01
+        - SP_800_171_03.17.03
+        - "03.04.08"
+        - "03.17.01"
+        - "03.17.03"
+      template: require-workload-label
+      pillar: applications-and-workloads
+      coverage: partial
+      parameters:
+        background: true
+        ruleName: require-supply-chain-evidence-label
+        labelName: cui.spectrocloud.com/supply-chain-evidence
+        labelValue: "?*"
+        message: Workloads must reference supply-chain evidence such as SBOM, provenance, or approved-source records.
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-172-identity-owner
+      controlIds:
+        - SP_800_172_3_0_0_03.01.07E
+        - SP_800_172_3_0_0_03.01.08E
+        - SP_800_172_3_0_0_03.01.09E
+        - SP_800_172_3_0_0_03.01.11E
+        - "03.01.07E"
+        - "03.01.08E"
+        - "03.01.09E"
+        - "03.01.11E"
+      template: require-identity-owner-label
+      pillar: identity
+      coverage: partial
+      parameters:
+        background: true
+        identityOwnerLabel: cui.spectrocloud.com/identity-owner
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-172-token-opt-out
+      controlIds:
+        - SP_800_172_3_0_0_03.05.01E
+        - SP_800_172_3_0_0_03.05.04E
+        - SP_800_172_3_0_0_03.05.07E
+        - "03.05.01E"
+        - "03.05.04E"
+        - "03.05.07E"
+      template: require-service-account-token-opt-out
+      pillar: identity
+      coverage: partial
+      parameters:
+        background: true
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-172-security-attributes
+      controlIds:
+        - SP_800_172_3_0_0_03.01.09E
+        - SP_800_172_3_0_0_03.01.10E
+        - SP_800_172_3_0_0_03.01.13E
+        - SP_800_172_3_0_0_03.01.15E
+        - "03.01.09E"
+        - "03.01.10E"
+        - "03.01.13E"
+        - "03.01.15E"
+      template: require-workload-label
+      pillar: data
+      coverage: partial
+      parameters:
+        background: true
+        ruleName: require-security-attributes-label
+        labelName: cui.spectrocloud.com/security-attributes
+        labelValue: "?*"
+        message: Workloads must carry security attribute metadata for selected enhanced CUI controls.
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-172-flow-isolation
+      controlIds:
+        - SP_800_172_3_0_0_03.01.12E
+        - SP_800_172_3_0_0_03.13.10E
+        - SP_800_172_3_0_0_03.13.15E
+        - SP_800_172_3_0_0_03.13.16E
+        - "03.01.12E"
+        - "03.13.10E"
+        - "03.13.15E"
+        - "03.13.16E"
+      template: require-workload-label
+      pillar: networks
+      coverage: partial
+      parameters:
+        background: true
+        ruleName: require-flow-isolation-review-label
+        labelName: cui.spectrocloud.com/flow-isolation-reviewed
+        labelValue: "true"
+        message: High-value CUI workloads must reference flow isolation review evidence.
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-172-pod-security
+      controlIds:
+        - SP_800_172_3_0_0_03.13.04E
+        - SP_800_172_3_0_0_03.13.07E
+        - SP_800_172_3_0_0_03.13.09E
+        - SP_800_172_3_0_0_03.13.16E
+        - SP_800_172_3_0_0_03.14.14E
+        - SP_800_172_3_0_0_03.14.15E
+        - "03.13.04E"
+        - "03.13.07E"
+        - "03.13.09E"
+        - "03.13.16E"
+        - "03.14.14E"
+        - "03.14.15E"
+      template: require-pod-security-posture
+      pillar: devices
+      coverage: partial
+      parameters:
+        background: true
+        podSecurityLevel: restricted
+        podSecurityVersion: latest
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-172-resource-boundaries
+      controlIds:
+        - SP_800_172_3_0_0_03.13.12E
+        - SP_800_172_3_0_0_03.15.02E
+        - "03.13.12E"
+        - "03.15.02E"
+      template: require-resource-requests-and-limits
+      pillar: applications-and-workloads
+      coverage: partial
+      parameters:
+        background: true
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-172-versioned-images
+      controlIds:
+        - SP_800_172_3_0_0_03.04.02E
+        - SP_800_172_3_0_0_03.14.01E
+        - SP_800_172_3_0_0_03.17.03E
+        - SP_800_172_3_0_0_03.17.04E
+        - SP_800_172_3_0_0_03.17.05E
+        - "03.04.02E"
+        - "03.14.01E"
+        - "03.17.03E"
+        - "03.17.04E"
+        - "03.17.05E"
+      template: disallow-latest-image-tag
+      pillar: applications-and-workloads
+      coverage: partial
+      parameters:
+        background: true
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-172-always-pull-images
+      controlIds:
+        - SP_800_172_3_0_0_03.04.02E
+        - SP_800_172_3_0_0_03.14.01E
+        - SP_800_172_3_0_0_03.17.03E
+        - "03.04.02E"
+        - "03.14.01E"
+        - "03.17.03E"
+      template: require-always-pull-images
+      pillar: applications-and-workloads
+      coverage: partial
+      parameters:
+        background: true
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-172-inventory-evidence
+      controlIds:
+        - SP_800_172_3_0_0_03.04.03E
+        - SP_800_172_3_0_0_03.04.08E
+        - "03.04.03E"
+        - "03.04.08E"
+      template: require-workload-label
+      pillar: governance
+      coverage: partial
+      parameters:
+        background: true
+        ruleName: require-component-inventory-label
+        labelName: cui.spectrocloud.com/component-id
+        labelValue: "?*"
+        message: Workloads must carry component inventory metadata for enhanced CUI tracking.
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-172-change-approval
+      controlIds:
+        - SP_800_172_3_0_0_03.04.05E
+        - SP_800_172_3_0_0_03.04.07E
+        - "03.04.05E"
+        - "03.04.07E"
+      template: require-workload-label
+      pillar: governance
+      coverage: partial
+      parameters:
+        background: true
+        ruleName: require-dual-change-approval-label
+        labelName: cui.spectrocloud.com/change-approval
+        labelValue: "?*"
+        message: High-value CUI workloads must reference change approval evidence.
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-172-monitoring-evidence
+      controlIds:
+        - SP_800_172_3_0_0_03.03.04E
+        - SP_800_172_3_0_0_03.06.04E
+        - SP_800_172_3_0_0_03.11.02E
+        - SP_800_172_3_0_0_03.12.03E
+        - SP_800_172_3_0_0_03.14.11E
+        - SP_800_172_3_0_0_03.14.17E
+        - SP_800_172_3_0_0_03.14.18E
+        - "03.03.04E"
+        - "03.06.04E"
+        - "03.11.02E"
+        - "03.12.03E"
+        - "03.14.11E"
+        - "03.14.17E"
+        - "03.14.18E"
+      template: require-workload-label
+      pillar: visibility-and-analytics
+      coverage: partial
+      parameters:
+        background: true
+        ruleName: require-monitoring-evidence-label
+        labelName: cui.spectrocloud.com/monitoring-evidence
+        labelValue: "?*"
+        message: High-value CUI workloads must reference monitoring, hunt, or alerting evidence.
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-172-data-classification
+      controlIds:
+        - SP_800_172_3_0_0_03.01.10E
+        - SP_800_172_3_0_0_03.01.15E
+        - SP_800_172_3_0_0_03.01.17E
+        - SP_800_172_3_0_0_03.14.09E
+        - "03.01.10E"
+        - "03.01.15E"
+        - "03.01.17E"
+        - "03.14.09E"
+      template: require-data-classification
+      pillar: data
+      coverage: partial
+      parameters:
+        background: true
+        dataClassificationLabel: cui.spectrocloud.com/data-classification
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-172-data-owner
+      controlIds:
+        - SP_800_172_3_0_0_03.01.10E
+        - SP_800_172_3_0_0_03.01.13E
+        - SP_800_172_3_0_0_03.15.01E
+        - "03.01.10E"
+        - "03.01.13E"
+        - "03.15.01E"
+      template: require-data-owner
+      pillar: data
+      coverage: partial
+      parameters:
+        background: true
+        dataOwnerLabel: cui.spectrocloud.com/data-owner
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-172-immutable-secrets
+      controlIds:
+        - SP_800_172_3_0_0_03.05.04E
+        - SP_800_172_3_0_0_03.14.09E
+        - SP_800_172_3_0_0_03.17.03E
+        - "03.05.04E"
+        - "03.14.09E"
+        - "03.17.03E"
+      template: require-immutable-secrets
+      pillar: data
+      coverage: partial
+      parameters:
+        background: true
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-172-backup-evidence
+      controlIds:
+        - SP_800_172_3_0_0_03.08.02E
+        - SP_800_172_3_0_0_03.08.03E
+        - SP_800_172_3_0_0_03.08.04E
+        - "03.08.02E"
+        - "03.08.03E"
+        - "03.08.04E"
+      template: require-workload-label
+      pillar: data
+      coverage: partial
+      parameters:
+        background: true
+        ruleName: require-backup-evidence-label
+        labelName: cui.spectrocloud.com/backup-evidence
+        labelValue: "?*"
+        message: High-value CUI workloads must reference backup test or recovery evidence.
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-172-pentest-evidence
+      controlIds:
+        - SP_800_172_3_0_0_03.12.01E
+        - SP_800_172_3_0_0_03.12.02E
+        - "03.12.01E"
+        - "03.12.02E"
+      template: require-workload-label
+      pillar: governance
+      coverage: partial
+      parameters:
+        background: true
+        ruleName: require-pentest-evidence-label
+        labelName: cui.spectrocloud.com/pentest-evidence
+        labelValue: "?*"
+        message: High-value CUI workloads must reference penetration test or independent assessment evidence.
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno
+    - name: nist-172-security-architecture
+      controlIds:
+        - SP_800_172_3_0_0_03.15.01E
+        - SP_800_172_3_0_0_03.15.02E
+        - SP_800_172_3_0_0_03.16.01E
+        - "03.15.01E"
+        - "03.15.02E"
+        - "03.16.01E"
+      template: require-workload-label
+      pillar: governance
+      coverage: partial
+      parameters:
+        background: true
+        ruleName: require-security-architecture-label
+        labelName: cui.spectrocloud.com/security-architecture
+        labelValue: "?*"
+        message: High-value CUI workloads must reference security architecture or defense-in-depth evidence.
+        excludeNamespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - kyverno

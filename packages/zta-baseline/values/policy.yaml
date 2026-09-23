@@ -1,0 +1,4 @@
+policy:
+  validationFailureAction: "###ZARF_VAR_ZTA_POLICY_MODE###"
+  background: true
+

@@ -1,0 +1,55 @@
+{{- if .Values.kyverno.enabled }}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: {{ include "zta-identity-guardrails.name" . | quote }}
+  labels:
+    {{- include "zta-identity-guardrails.labels" . | nindent 4 }}
+spec:
+  validationFailureAction: {{ .Values.policy.validationFailureAction | quote }}
+  background: {{ .Values.policy.background }}
+  rules:
+    {{- if .Values.controls.requireNamedServiceAccount }}
+    - name: require-named-service-account
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      {{- include "zta-identity-guardrails.exclude" . | nindent 6 }}
+      validate:
+        message: "Pods must declare a non-default serviceAccountName for explicit workload identity."
+        pattern:
+          spec:
+            serviceAccountName: "!default"
+    {{- end }}
+    {{- if .Values.controls.requirePodTokenOptIn }}
+    - name: require-service-account-token-opt-out
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      {{- include "zta-identity-guardrails.exclude" . | nindent 6 }}
+      validate:
+        message: "Pods must set automountServiceAccountToken: false unless token mounting is explicitly justified by exception."
+        pattern:
+          spec:
+            automountServiceAccountToken: false
+    {{- end }}
+    {{- if .Values.controls.requireIdentityOwnerLabel }}
+    - name: require-identity-owner-label
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      {{- include "zta-identity-guardrails.exclude" . | nindent 6 }}
+      validate:
+        message: "Pods must carry an identity owner label for governance and incident response."
+        pattern:
+          metadata:
+            labels:
+              {{ .Values.labels.identityOwner | quote }}: "?*"
+    {{- end }}
+{{- end }}

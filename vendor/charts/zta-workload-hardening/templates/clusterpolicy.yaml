@@ -1,0 +1,63 @@
+{{- if .Values.kyverno.enabled }}
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: {{ include "zta-workload-hardening.name" . | quote }}
+  labels:
+    {{- include "zta-workload-hardening.labels" . | nindent 4 }}
+spec:
+  validationFailureAction: {{ .Values.policy.validationFailureAction | quote }}
+  background: {{ .Values.policy.background }}
+  rules:
+    {{- if .Values.controls.requireResourceRequestsAndLimits }}
+    - name: require-resource-requests-and-limits
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      {{- include "zta-workload-hardening.exclude" . | nindent 6 }}
+      validate:
+        message: "Containers must declare CPU and memory requests and limits."
+        pattern:
+          spec:
+            containers:
+              - resources:
+                  requests:
+                    cpu: "?*"
+                    memory: "?*"
+                  limits:
+                    cpu: "?*"
+                    memory: "?*"
+    {{- end }}
+    {{- if .Values.controls.disallowLatestTag }}
+    - name: disallow-latest-image-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      {{- include "zta-workload-hardening.exclude" . | nindent 6 }}
+      validate:
+        message: "Container images must use immutable or explicitly versioned tags instead of latest."
+        pattern:
+          spec:
+            containers:
+              - image: "!*:latest"
+    {{- end }}
+    {{- if .Values.controls.requireAlwaysPullImages }}
+    - name: require-always-pull-images
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      {{- include "zta-workload-hardening.exclude" . | nindent 6 }}
+      validate:
+        message: "Containers must set imagePullPolicy: Always."
+        pattern:
+          spec:
+            containers:
+              - imagePullPolicy: "Always"
+    {{- end }}
+{{- end }}

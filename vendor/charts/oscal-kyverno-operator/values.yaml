@@ -1,0 +1,70 @@
+operator:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/flant/shell-operator
+    tag: v1.20.5
+    pullPolicy: IfNotPresent
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+serviceAccount:
+  create: true
+  name: ""
+
+policy:
+  validationFailureAction: "Audit"
+  background: true
+  podSecurityLevel: "restricted"
+  podSecurityVersion: "latest"
+  excludeNamespaces:
+    - "kube-system"
+    - "kube-public"
+    - "kube-node-lease"
+    - "kyverno"
+
+controls:
+  requireNamedServiceAccount: true
+  requirePodTokenOptIn: true
+  requireIdentityOwnerLabel: false
+  requirePodSecurityPosture: true
+  requireResourceRequestsAndLimits: true
+  disallowLatestTag: true
+  requireAlwaysPullImages: false
+  requireDataClassification: true
+  requireOwnerLabel: true
+  requireImmutableSecrets: false
+
+labels:
+  identityOwner: "zta.spectrocloud.com/identity-owner"
+  dataClassification: "zta.spectrocloud.com/data-classification"
+  dataOwner: "zta.spectrocloud.com/data-owner"
+
+nistMappings:
+  enabled: true
+
+examples:
+  enabled: true
+  documentName: "zta-oscal-baseline"
+  mappingName: "zta-kyverno-mapping"
+  controlScopes:
+    enabled: false
+    scopes:
+      - name: "identity-mission-workloads"
+        controlIds:
+          - "AC-2"
+          - "AC-3"
+          - "AC-6"
+          - "IA-2"
+        includeNamespaces:
+          - "mission-workloads"
+        excludeNamespaces:
+          - "legacy-identity-exceptions"
+      - name: "data-migration-exceptions"
+        controlIds:
+          - "RA-2"
+          - "SC-28"
+          - "PM-5"
+        excludeNamespaces:
+          - "data-migration"

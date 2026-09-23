@@ -1,0 +1,8 @@
+apiVersion: v2
+name: zta-workload-hardening
+description: Kyverno application and workload hygiene controls for zero trust Kubernetes.
+type: application
+version: 0.1.1
+appVersion: "0.1.1"
+annotations:
+  org.opencontainers.image.source: https://github.com/millerjem/zero-trust-palette-packs

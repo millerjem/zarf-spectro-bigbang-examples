@@ -1,0 +1,704 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-hooks" (include "oscal-kyverno-operator.name" .) | quote }}
+  labels:
+    {{- include "oscal-kyverno-operator.labels" . | nindent 4 }}
+data:
+  reconcile-oscal-kyverno.sh: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    API_VERSION="compliance.spectrocloud.com/v1alpha1"
+    DOC_RESOURCE="oscaldocuments.compliance.spectrocloud.com"
+    MAP_RESOURCE="oscalkyvernomappings.compliance.spectrocloud.com"
+    POLICY_RESOURCE="oscalpolicies.compliance.spectrocloud.com"
+
+    if [[ "${1:-}" == "--config" ]]; then
+      cat <<'CONFIG'
+    configVersion: v1
+    kubernetes:
+      - name: oscal-documents
+        apiVersion: compliance.spectrocloud.com/v1alpha1
+        kind: OSCALDocument
+        executeHookOnEvent: ["Added", "Modified", "Deleted"]
+        executeHookOnSynchronization: true
+        group: oscal-kyverno
+        queue: oscal-kyverno
+      - name: oscal-kyverno-mappings
+        apiVersion: compliance.spectrocloud.com/v1alpha1
+        kind: OSCALKyvernoMapping
+        executeHookOnEvent: ["Added", "Modified", "Deleted"]
+        executeHookOnSynchronization: true
+        group: oscal-kyverno
+        queue: oscal-kyverno
+    CONFIG
+      exit 0
+    fi
+
+    normalize_enforcement() {
+      case "$(printf '%s' "${1:-Audit}" | tr '[:upper:]' '[:lower:]')" in
+        enforce|enforced)
+          printf 'Enforce\n'
+          ;;
+        *)
+          printf 'Audit\n'
+          ;;
+      esac
+    }
+
+    safe_name() {
+      printf '%s' "$1" \
+        | tr '[:upper:]_' '[:lower:]-' \
+        | sed -E 's/[^a-z0-9-]+/-/g; s/^-+//; s/-+$//' \
+        | cut -c1-63 \
+        | sed -E 's/-+$//'
+    }
+
+    extract_control_ids() {
+      jq -c '
+        def catalog_control_ids:
+          [
+            (.controls[]? | (.id? // empty), (catalog_control_ids[]?)),
+            (.groups[]? | catalog_control_ids[]?)
+          ];
+
+        [
+          ((.spec.oscal // {}) | .. | objects |
+            (."control-id"? // empty),
+            (."control-ids"?[]? // empty),
+            (."with-ids"?[]? // empty),
+            (."withIds"?[]? // empty),
+            (select(.target?.type? == "statement-id") | .target."target-id"? // empty)),
+          (((.spec.oscal.catalog // {}) | catalog_control_ids[]?) // empty)
+        ]
+        | map(tostring | ascii_upcase)
+        | unique
+      ' <<< "$1"
+    }
+
+    apply_control_scopes() {
+      local doc="$1"
+      local mapping="$2"
+
+      jq -c --argjson doc "$doc" '
+        def normalized_ids:
+          map(tostring | ascii_upcase);
+
+        . as $mapping
+        | (($mapping.controlIds // []) | normalized_ids) as $mappingIds
+        | (($doc.spec.controlScopes // [])
+            | map(select(any((.controlIds // [])[]; (. | tostring | ascii_upcase) as $id | ($mappingIds | index($id)))))
+          ) as $scopes
+        | (($mapping.parameters // {}) | .) as $base
+        | (($base.includeNamespaces // []) | map(tostring)) as $baseIncludes
+        | (($base.excludeNamespaces // []) | map(tostring)) as $baseExcludes
+        | (($scopes | map(.includeNamespaces // []) | add // []) | map(tostring)) as $scopeIncludes
+        | (($scopes | map(.excludeNamespaces // []) | add // []) | map(tostring)) as $scopeExcludes
+        | .parameters = (
+            $base
+            + (if (($baseIncludes + $scopeIncludes) | length) > 0
+               then {includeNamespaces: (($baseIncludes + $scopeIncludes) | unique)}
+               else {}
+               end)
+            + (if (($baseExcludes + $scopeExcludes) | length) > 0
+               then {excludeNamespaces: (($baseExcludes + $scopeExcludes) | unique)}
+               else {}
+               end)
+          )
+      ' <<< "$mapping"
+    }
+
+    render_include_block() {
+      local params="$1"
+      local count
+      count="$(jq -r '(.includeNamespaces // []) | length' <<< "$params")"
+      if [[ "$count" == "0" ]]; then
+        return
+      fi
+
+      cat <<'YAML'
+                  namespaces:
+    YAML
+      jq -r '(.includeNamespaces // [])[] | "                - \"" + . + "\""' <<< "$params"
+    }
+
+    render_exclude_block() {
+      local params="$1"
+      local count
+      count="$(jq -r '(.excludeNamespaces // []) | length' <<< "$params")"
+      if [[ "$count" == "0" ]]; then
+        return
+      fi
+
+      cat <<'YAML'
+          exclude:
+            any:
+              - resources:
+                  namespaces:
+    YAML
+      jq -r '(.excludeNamespaces // [])[] | "                - \"" + . + "\""' <<< "$params"
+    }
+
+    render_policy_header() {
+      local policy_name="$1"
+      local doc_name="$2"
+      local doc_uid="$3"
+      local mapping_name="$4"
+      local enforcement="$5"
+      local mapping="$6"
+      local params="$7"
+      local background control_ids coverage pillar template
+
+      background="$(jq -r '.background // true' <<< "$params")"
+      control_ids="$(jq -r '[.controlIds[]? | tostring | ascii_upcase] | join(",")' <<< "$mapping")"
+      coverage="$(jq -r '.coverage // "partial"' <<< "$mapping")"
+      pillar="$(jq -r '.pillar // "governance"' <<< "$mapping")"
+      template="$(jq -r '.template' <<< "$mapping")"
+
+      cat <<YAML
+    apiVersion: kyverno.io/v1
+    kind: ClusterPolicy
+    metadata:
+      name: "$policy_name"
+      labels:
+        app.kubernetes.io/managed-by: "oscal-kyverno-operator"
+        oscal.spectrocloud.com/document: "$doc_name"
+        oscal.spectrocloud.com/mapping: "$mapping_name"
+        oscal.spectrocloud.com/template: "$template"
+        zta.spectrocloud.com/pillar: "$pillar"
+      annotations:
+        oscal.spectrocloud.com/control-ids: "$control_ids"
+        oscal.spectrocloud.com/coverage: "$coverage"
+        oscal.spectrocloud.com/source-document: "$doc_name"
+      ownerReferences:
+        - apiVersion: "$API_VERSION"
+          kind: OSCALDocument
+          name: "$doc_name"
+          uid: "$doc_uid"
+    spec:
+      validationFailureAction: "$enforcement"
+      background: $background
+      rules:
+    YAML
+    }
+
+    render_named_service_account_rule() {
+      local params="$1"
+      cat <<'YAML'
+        - name: require-named-service-account
+          match:
+            any:
+              - resources:
+                  kinds:
+                    - Pod
+    YAML
+      render_include_block "$params"
+      render_exclude_block "$params"
+      cat <<'YAML'
+          validate:
+            message: "Pods must declare a non-default serviceAccountName for explicit workload identity."
+            pattern:
+              spec:
+                serviceAccountName: "!default"
+    YAML
+    }
+
+    render_token_opt_out_rule() {
+      local params="$1"
+      cat <<'YAML'
+        - name: require-service-account-token-opt-out
+          match:
+            any:
+              - resources:
+                  kinds:
+                    - Pod
+    YAML
+      render_include_block "$params"
+      render_exclude_block "$params"
+      cat <<'YAML'
+          validate:
+            message: "Pods must set automountServiceAccountToken: false unless token mounting is explicitly justified by exception."
+            pattern:
+              spec:
+                automountServiceAccountToken: false
+    YAML
+    }
+
+    render_identity_owner_rule() {
+      local params="$1"
+      local label
+      label="$(jq -r '.identityOwnerLabel // "zta.spectrocloud.com/identity-owner"' <<< "$params")"
+      cat <<'YAML'
+        - name: require-identity-owner-label
+          match:
+            any:
+              - resources:
+                  kinds:
+                    - Pod
+    YAML
+      render_include_block "$params"
+      render_exclude_block "$params"
+      cat <<YAML
+          validate:
+            message: "Pods must carry an identity owner label for governance and incident response."
+            pattern:
+              metadata:
+                labels:
+                  "$label": "?*"
+    YAML
+    }
+
+    render_pod_security_rule() {
+      local params="$1"
+      local level version
+      level="$(jq -r '.podSecurityLevel // "restricted"' <<< "$params")"
+      version="$(jq -r '.podSecurityVersion // "latest"' <<< "$params")"
+      cat <<'YAML'
+        - name: require-pod-security-posture
+          match:
+            any:
+              - resources:
+                  kinds:
+                    - Pod
+    YAML
+      render_include_block "$params"
+      render_exclude_block "$params"
+      cat <<YAML
+          validate:
+            message: "Pods must satisfy the selected Pod Security posture for zero trust device and node exposure control."
+            podSecurity:
+              level: "$level"
+              version: "$version"
+    YAML
+    }
+
+    render_resource_limits_rule() {
+      local params="$1"
+      cat <<'YAML'
+        - name: require-resource-requests-and-limits
+          match:
+            any:
+              - resources:
+                  kinds:
+                    - Pod
+    YAML
+      render_include_block "$params"
+      render_exclude_block "$params"
+      cat <<'YAML'
+          validate:
+            message: "Containers must declare CPU and memory requests and limits."
+            pattern:
+              spec:
+                containers:
+                  - resources:
+                      requests:
+                        cpu: "?*"
+                        memory: "?*"
+                      limits:
+                        cpu: "?*"
+                        memory: "?*"
+    YAML
+    }
+
+    render_disallow_latest_rule() {
+      local params="$1"
+      cat <<'YAML'
+        - name: disallow-latest-image-tag
+          match:
+            any:
+              - resources:
+                  kinds:
+                    - Pod
+    YAML
+      render_include_block "$params"
+      render_exclude_block "$params"
+      cat <<'YAML'
+          validate:
+            message: "Container images must use immutable or explicitly versioned tags instead of latest."
+            pattern:
+              spec:
+                containers:
+                  - image: "!*:latest"
+    YAML
+    }
+
+    render_always_pull_rule() {
+      local params="$1"
+      cat <<'YAML'
+        - name: require-always-pull-images
+          match:
+            any:
+              - resources:
+                  kinds:
+                    - Pod
+    YAML
+      render_include_block "$params"
+      render_exclude_block "$params"
+      cat <<'YAML'
+          validate:
+            message: "Containers must set imagePullPolicy: Always."
+            pattern:
+              spec:
+                containers:
+                  - imagePullPolicy: "Always"
+    YAML
+    }
+
+    render_data_classification_rule() {
+      local params="$1"
+      local label
+      label="$(jq -r '.dataClassificationLabel // "zta.spectrocloud.com/data-classification"' <<< "$params")"
+      cat <<'YAML'
+        - name: require-data-classification
+          match:
+            any:
+              - resources:
+                  kinds:
+                    - Secret
+                    - PersistentVolumeClaim
+    YAML
+      render_include_block "$params"
+      render_exclude_block "$params"
+      cat <<YAML
+          validate:
+            message: "Secrets and PVCs must carry a data classification label."
+            pattern:
+              metadata:
+                labels:
+                  "$label": "?*"
+    YAML
+    }
+
+    render_data_owner_rule() {
+      local params="$1"
+      local label
+      label="$(jq -r '.dataOwnerLabel // "zta.spectrocloud.com/data-owner"' <<< "$params")"
+      cat <<'YAML'
+        - name: require-data-owner
+          match:
+            any:
+              - resources:
+                  kinds:
+                    - Secret
+                    - PersistentVolumeClaim
+    YAML
+      render_include_block "$params"
+      render_exclude_block "$params"
+      cat <<YAML
+          validate:
+            message: "Secrets and PVCs must carry a data owner label."
+            pattern:
+              metadata:
+                labels:
+                  "$label": "?*"
+    YAML
+    }
+
+    render_immutable_secret_rule() {
+      local params="$1"
+      cat <<'YAML'
+        - name: require-immutable-secrets
+          match:
+            any:
+              - resources:
+                  kinds:
+                    - Secret
+    YAML
+      render_include_block "$params"
+      render_exclude_block "$params"
+      cat <<'YAML'
+          validate:
+            message: "Secrets must set immutable: true unless an exception process is used."
+            pattern:
+              immutable: true
+    YAML
+    }
+
+    render_workload_label_rule() {
+      local params="$1"
+      local rule_name message_json label_json value_json
+      rule_name="$(safe_name "$(jq -r '.ruleName // "require-workload-label"' <<< "$params")")"
+      message_json="$(jq -r '(.message // "Pods must carry the required workload governance label.") | @json' <<< "$params")"
+      label_json="$(jq -r '(.labelName // "appsec.spectrocloud.com/reviewed") | @json' <<< "$params")"
+      value_json="$(jq -r '(.labelValue // "?*") | @json' <<< "$params")"
+
+      cat <<YAML
+        - name: $rule_name
+          match:
+            any:
+              - resources:
+                  kinds:
+                    - Pod
+    YAML
+      render_include_block "$params"
+      render_exclude_block "$params"
+      cat <<YAML
+          validate:
+            message: $message_json
+            pattern:
+              metadata:
+                labels:
+                  $label_json: $value_json
+    YAML
+    }
+
+    render_rule() {
+      local template="$1"
+      local params="$2"
+
+      case "$template" in
+        require-named-service-account)
+          render_named_service_account_rule "$params"
+          ;;
+        require-service-account-token-opt-out)
+          render_token_opt_out_rule "$params"
+          ;;
+        require-identity-owner-label)
+          render_identity_owner_rule "$params"
+          ;;
+        require-pod-security-posture)
+          render_pod_security_rule "$params"
+          ;;
+        require-resource-requests-and-limits)
+          render_resource_limits_rule "$params"
+          ;;
+        disallow-latest-image-tag)
+          render_disallow_latest_rule "$params"
+          ;;
+        require-always-pull-images)
+          render_always_pull_rule "$params"
+          ;;
+        require-data-classification)
+          render_data_classification_rule "$params"
+          ;;
+        require-data-owner)
+          render_data_owner_rule "$params"
+          ;;
+        require-immutable-secrets)
+          render_immutable_secret_rule "$params"
+          ;;
+        require-workload-label)
+          render_workload_label_rule "$params"
+          ;;
+        *)
+          return 1
+          ;;
+      esac
+    }
+
+    render_kyverno_policy() {
+      local policy_name="$1"
+      local doc_name="$2"
+      local doc_uid="$3"
+      local mapping_name="$4"
+      local enforcement="$5"
+      local mapping="$6"
+      local params template
+
+      params="$(jq -c '.parameters // {}' <<< "$mapping")"
+      template="$(jq -r '.template' <<< "$mapping")"
+
+      render_policy_header "$policy_name" "$doc_name" "$doc_uid" "$mapping_name" "$enforcement" "$mapping" "$params"
+      render_rule "$template" "$params"
+    }
+
+    render_oscal_policy() {
+      local policy_name="$1"
+      local doc_name="$2"
+      local doc_uid="$3"
+      local mapping_name="$4"
+      local enforcement="$5"
+      local mapping="$6"
+      local control_ids params coverage pillar template
+
+      control_ids="$(jq -c '[.controlIds[]? | tostring | ascii_upcase]' <<< "$mapping")"
+      params="$(jq -c '.parameters // {}' <<< "$mapping")"
+      coverage="$(jq -r '.coverage // "partial"' <<< "$mapping")"
+      pillar="$(jq -r '.pillar // "governance"' <<< "$mapping")"
+      template="$(jq -r '.template' <<< "$mapping")"
+
+      cat <<YAML
+    apiVersion: "$API_VERSION"
+    kind: OSCALPolicy
+    metadata:
+      name: "$policy_name"
+      labels:
+        app.kubernetes.io/managed-by: "oscal-kyverno-operator"
+        oscal.spectrocloud.com/document: "$doc_name"
+        oscal.spectrocloud.com/mapping: "$mapping_name"
+        oscal.spectrocloud.com/template: "$template"
+        zta.spectrocloud.com/pillar: "$pillar"
+      annotations:
+        oscal.spectrocloud.com/source-document: "$doc_name"
+      ownerReferences:
+        - apiVersion: "$API_VERSION"
+          kind: OSCALDocument
+          name: "$doc_name"
+          uid: "$doc_uid"
+    spec:
+      sourceDocument: "$doc_name"
+      mappingRef: "$mapping_name"
+      controlIds: $control_ids
+      enforcement: "$enforcement"
+      template: "$template"
+      pillar: "$pillar"
+      coverage: "$coverage"
+      renderedPolicy: "$policy_name"
+      parameters: $params
+    YAML
+    }
+
+    apply_manifest() {
+      printf '%s\n' "$1" | kubectl apply -f - >/dev/null
+    }
+
+    cleanup_stale_resources() {
+      local doc_name="$1"
+      local desired_file="$2"
+      local existing
+
+      while IFS= read -r existing; do
+        [[ -n "$existing" ]] || continue
+        if ! grep -Fxq "$existing" "$desired_file"; then
+          kubectl delete clusterpolicies.kyverno.io "$existing" >/dev/null 2>&1 || true
+        fi
+      done < <(kubectl get clusterpolicies.kyverno.io -l "oscal.spectrocloud.com/document=$doc_name" -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null || true)
+
+      while IFS= read -r existing; do
+        [[ -n "$existing" ]] || continue
+        if ! grep -Fxq "$existing" "$desired_file"; then
+          kubectl delete "$POLICY_RESOURCE" "$existing" >/dev/null 2>&1 || true
+        fi
+      done < <(kubectl get "$POLICY_RESOURCE" -l "oscal.spectrocloud.com/document=$doc_name" -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null || true)
+    }
+
+    patch_document_status() {
+      local doc_name="$1"
+      local ready="$2"
+      local reason="$3"
+      local message="$4"
+      local generated_json="$5"
+      local unmapped_json="$6"
+      local partial_json="$7"
+      local generated_count
+      local payload
+
+      generated_count="$(jq -r 'length' <<< "$generated_json")"
+      payload="$(jq -n \
+        --arg ready "$ready" \
+        --arg reason "$reason" \
+        --arg message "$message" \
+        --arg observedAt "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+        --argjson generated "$generated_json" \
+        --argjson unmapped "$unmapped_json" \
+        --argjson partial "$partial_json" \
+        --argjson generatedCount "$generated_count" \
+        '{
+          status: {
+            observedAt: $observedAt,
+            generatedPolicies: $generated,
+            generatedPolicyCount: $generatedCount,
+            unmappedControls: $unmapped,
+            partialControls: $partial,
+            conditions: [
+              {
+                type: "Ready",
+                status: $ready,
+                reason: $reason,
+                message: $message,
+                lastTransitionTime: $observedAt
+              }
+            ]
+          }
+        }')"
+
+      kubectl patch "$DOC_RESOURCE" "$doc_name" --subresource=status --type=merge -p "$payload" >/dev/null 2>&1 || true
+    }
+
+    reconcile_document() {
+      local doc="$1"
+      local mappings_json="$2"
+      local doc_name doc_uid mapping_name preset enforcement controls_json mapping
+      local desired_file generated_json mapped_controls_json unmapped_json partial_json generated_count
+
+      doc_name="$(jq -r '.metadata.name' <<< "$doc")"
+      doc_uid="$(jq -r '.metadata.uid' <<< "$doc")"
+      mapping_name="$(jq -r '.spec.mappingRef.name // "zta-kyverno-mapping"' <<< "$doc")"
+      preset="$(jq -r '.spec.preset // .spec.enforcement // "Audit"' <<< "$doc")"
+      enforcement="$(normalize_enforcement "$preset")"
+      controls_json="$(extract_control_ids "$doc")"
+      mapping="$(jq -c --arg name "$mapping_name" '.items[]? | select(.metadata.name == $name)' <<< "$mappings_json" | head -n 1)"
+
+      if [[ -z "$mapping" ]]; then
+        patch_document_status "$doc_name" "False" "MappingNotFound" "No OSCALKyvernoMapping named $mapping_name was found." "[]" "$controls_json" "[]"
+        return
+      fi
+
+      desired_file="$(mktemp)"
+
+      while IFS= read -r mapping_item; do
+        [[ -n "$mapping_item" ]] || continue
+
+        local mapping_item_name raw_name policy_name policy_manifest oscal_manifest effective_mapping_item
+        mapping_item_name="$(jq -r '.name' <<< "$mapping_item")"
+        raw_name="oscal-$doc_name-$mapping_item_name"
+        policy_name="$(safe_name "$raw_name")"
+        effective_mapping_item="$(apply_control_scopes "$doc" "$mapping_item")"
+
+        if ! policy_manifest="$(render_kyverno_policy "$policy_name" "$doc_name" "$doc_uid" "$mapping_name" "$enforcement" "$effective_mapping_item")"; then
+          echo "Skipping unsupported template in mapping $mapping_item_name" >&2
+          continue
+        fi
+
+        oscal_manifest="$(render_oscal_policy "$policy_name" "$doc_name" "$doc_uid" "$mapping_name" "$enforcement" "$effective_mapping_item")"
+        apply_manifest "$oscal_manifest"
+        apply_manifest "$policy_manifest"
+        printf '%s\n' "$policy_name" >> "$desired_file"
+      done < <(jq -c --argjson controls "$controls_json" '
+        .spec.mappings[]?
+        | select(any((.controlIds // [])[]; (. | tostring | ascii_upcase) as $id | ($controls | index($id))))
+      ' <<< "$mapping")
+
+      cleanup_stale_resources "$doc_name" "$desired_file"
+
+      generated_json="$(jq -R -s -c 'split("\n") | map(select(length > 0))' "$desired_file")"
+      mapped_controls_json="$(jq -c '[.spec.mappings[]? | .controlIds[]? | tostring | ascii_upcase] | unique' <<< "$mapping")"
+      unmapped_json="$(jq -n -c --argjson selected "$controls_json" --argjson mapped "$mapped_controls_json" '$selected - $mapped')"
+      partial_json="$(jq -c --argjson controls "$controls_json" '
+        [
+          .spec.mappings[]?
+          | select((.coverage // "partial") != "enforced")
+          | .controlIds[]?
+          | tostring
+          | ascii_upcase
+        ]
+        | unique
+        | map(select($controls | index(.)))
+      ' <<< "$mapping")"
+      generated_count="$(jq -r 'length' <<< "$generated_json")"
+
+      if [[ "$generated_count" == "0" ]]; then
+        patch_document_status "$doc_name" "False" "NoMappedControls" "The OSCAL document did not contain controls covered by mapping $mapping_name." "$generated_json" "$unmapped_json" "$partial_json"
+      else
+        patch_document_status "$doc_name" "True" "Reconciled" "Generated $generated_count Kyverno policy resources from OSCAL controls." "$generated_json" "$unmapped_json" "$partial_json"
+      fi
+
+      rm -f "$desired_file"
+    }
+
+    main() {
+      local documents_json mappings_json
+
+      documents_json="$(kubectl get "$DOC_RESOURCE" -o json)"
+      mappings_json="$(kubectl get "$MAP_RESOURCE" -o json)"
+
+      while IFS= read -r doc; do
+        [[ -n "$doc" ]] || continue
+        reconcile_document "$doc" "$mappings_json"
+      done < <(jq -c '.items[]?' <<< "$documents_json")
+    }
+
+    if [[ "${OSCAL_KYVERNO_SKIP_MAIN:-false}" != "true" ]]; then
+      main
+    fi

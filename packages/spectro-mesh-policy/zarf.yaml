@@ -1,0 +1,63 @@
+kind: ZarfPackageConfig
+metadata:
+  name: spectro-mesh-policy
+  description: Big-Bang-style Istio service mesh with optional Kyverno policy engine.
+  version: 0.1.0
+
+variables:
+  - name: ISTIO_PILOT_REPLICAS
+    description: Istiod replica count when autoscaling is disabled.
+    default: "2"
+  - name: ISTIO_GATEWAY_TYPE
+    description: Kubernetes Service type for the ingress gateway.
+    default: LoadBalancer
+  - name: ISTIO_GATEWAY_REPLICAS
+    description: Minimum ingress gateway replicas.
+    default: "2"
+  - name: KYVERNO_REPLICAS
+    description: Replica count for each optional Kyverno controller.
+    default: "1"
+
+components:
+  - name: istio
+    description: Pinned Istio version matching a Spectro additional-pack release.
+    required: true
+    charts:
+      - name: istio-base
+        namespace: istio-system
+        version: 1.28.2
+        localPath: ../../vendor/charts/base-1.28.2.tgz
+      - name: istiod
+        namespace: istio-system
+        version: 1.28.2
+        localPath: ../../vendor/charts/istiod-1.28.2.tgz
+        valuesFiles:
+          - values/istiod.yaml
+      - name: istio-ingress
+        namespace: istio-system
+        version: 1.28.2
+        localPath: ../../vendor/charts/gateway-1.28.2.tgz
+        valuesFiles:
+          - values/gateway.yaml
+    images:
+      - docker.io/istio/pilot:1.28.2
+      - docker.io/istio/proxyv2:1.28.2
+
+  - name: kyverno
+    description: Optional Spectro community Kyverno policy engine.
+    default: false
+    charts:
+      - name: kyverno
+        namespace: kyverno
+        version: 3.8.2
+        localPath: ../../vendor/charts/kyverno-3.8.2.tgz
+        valuesFiles:
+          - values/kyverno.yaml
+    images:
+      - ghcr.io/kyverno/readiness-checker:v1.18.2
+      - reg.kyverno.io/kyverno/background-controller:v1.18.2
+      - reg.kyverno.io/kyverno/cleanup-controller:v1.18.2
+      - reg.kyverno.io/kyverno/kyverno-cli:v1.18.2
+      - reg.kyverno.io/kyverno/kyverno:v1.18.2
+      - reg.kyverno.io/kyverno/kyvernopre:v1.18.2
+      - reg.kyverno.io/kyverno/reports-controller:v1.18.2

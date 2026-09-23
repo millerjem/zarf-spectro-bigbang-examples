@@ -1,0 +1,8 @@
+apiVersion: v2
+name: zta-network-microsegmentation
+description: Kubernetes NetworkPolicy microsegmentation baseline for zero trust clusters.
+type: application
+version: 0.1.1
+appVersion: "0.1.1"
+annotations:
+  org.opencontainers.image.source: https://github.com/millerjem/zero-trust-palette-packs

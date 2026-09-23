@@ -1,0 +1,16 @@
+admissionController:
+  replicas: ###ZARF_VAR_KYVERNO_REPLICAS###
+backgroundController:
+  replicas: ###ZARF_VAR_KYVERNO_REPLICAS###
+cleanupController:
+  replicas: ###ZARF_VAR_KYVERNO_REPLICAS###
+reportsController:
+  replicas: ###ZARF_VAR_KYVERNO_REPLICAS###
+crds:
+  install: true
+test:
+  image:
+    tag: v1.18.2
+webhooksCleanup:
+  image:
+    tag: v1.18.2

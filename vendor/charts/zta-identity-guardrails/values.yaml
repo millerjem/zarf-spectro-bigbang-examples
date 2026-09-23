@@ -1,0 +1,19 @@
+kyverno:
+  enabled: true
+
+policy:
+  validationFailureAction: "Audit"
+  background: true
+  excludeNamespaces:
+    - "kube-system"
+    - "kube-public"
+    - "kube-node-lease"
+    - "kyverno"
+
+controls:
+  requireNamedServiceAccount: true
+  requirePodTokenOptIn: true
+  requireIdentityOwnerLabel: false
+
+labels:
+  identityOwner: "zta.spectrocloud.com/identity-owner"

@@ -1,0 +1,9 @@
+namespace:
+  name: "###ZARF_VAR_ZTA_TARGET_NAMESPACE###"
+  create: true
+istio:
+  injection:
+    enabled: true
+    labelKey: istio-injection
+    labelValue: enabled
+

@@ -1,0 +1,49 @@
+kind: ZarfPackageConfig
+metadata:
+  name: spectro-security
+  description: Big-Bang-style policy enforcement with optional vulnerability scanning.
+  version: 0.1.0
+
+variables:
+  - name: KYVERNO_REPLICAS
+    description: Replica count for each Kyverno controller.
+    default: "1"
+  - name: TRIVY_STORAGE_CLASS
+    description: StorageClass for the Trivy cache PVC; empty selects the cluster default.
+    default: ""
+  - name: TRIVY_STORAGE_SIZE
+    description: Trivy cache PVC size.
+    default: 5Gi
+
+components:
+  - name: kyverno
+    description: Spectro community Kyverno pack content.
+    required: true
+    charts:
+      - name: kyverno
+        namespace: kyverno
+        version: 3.8.2
+        localPath: ../../vendor/charts/kyverno-3.8.2.tgz
+        valuesFiles:
+          - values/kyverno.yaml
+    images:
+      - ghcr.io/kyverno/readiness-checker:v1.18.2
+      - reg.kyverno.io/kyverno/background-controller:v1.18.2
+      - reg.kyverno.io/kyverno/cleanup-controller:v1.18.2
+      - reg.kyverno.io/kyverno/kyverno-cli:v1.18.2
+      - reg.kyverno.io/kyverno/kyverno:v1.18.2
+      - reg.kyverno.io/kyverno/kyvernopre:v1.18.2
+      - reg.kyverno.io/kyverno/reports-controller:v1.18.2
+
+  - name: trivy
+    description: Optional Spectro community Trivy scanner.
+    default: false
+    charts:
+      - name: trivy
+        namespace: trivy
+        version: 0.4.12
+        localPath: ../../vendor/charts/trivy-0.4.12.tgz
+        valuesFiles:
+          - values/trivy.yaml
+    images:
+      - docker.io/aquasec/trivy:0.24.0

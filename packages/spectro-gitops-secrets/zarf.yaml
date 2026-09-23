@@ -1,0 +1,52 @@
+kind: ZarfPackageConfig
+metadata:
+  name: spectro-gitops-secrets
+  description: Big-Bang-style GitOps controllers with optional external secret synchronization.
+  version: 0.1.0
+
+variables:
+  - name: CLUSTER_DOMAIN
+    description: Kubernetes cluster DNS domain.
+    default: cluster.local
+  - name: FLUX_MULTITENANCY
+    description: Enable Flux multi-tenancy lockdown.
+    default: "true"
+  - name: ESO_REPLICAS
+    description: External Secrets Operator replica count.
+    default: "2"
+  - name: ESO_LOG_LEVEL
+    description: External Secrets Operator log level.
+    default: info
+
+components:
+  - name: flux
+    description: Pinned upstream equivalent of the Spectro Flux2 capability.
+    required: true
+    charts:
+      - name: flux2
+        namespace: flux-system
+        version: 2.17.2
+        localPath: ../../vendor/charts/flux2-2.17.2.tgz
+        valuesFiles:
+          - values/flux.yaml
+    images:
+      - ghcr.io/fluxcd/flux-cli:v2.7.5
+      - ghcr.io/fluxcd/helm-controller:v1.4.5
+      - ghcr.io/fluxcd/image-automation-controller:v1.0.4
+      - ghcr.io/fluxcd/image-reflector-controller:v1.0.4
+      - ghcr.io/fluxcd/kustomize-controller:v1.7.3
+      - ghcr.io/fluxcd/notification-controller:v1.7.5
+      - ghcr.io/fluxcd/source-controller:v1.7.4
+
+  - name: external-secrets
+    description: Optional pinned External Secrets Operator capability.
+    default: false
+    charts:
+      - name: external-secrets
+        namespace: external-secrets
+        version: 2.11.0
+        localPath: ../../vendor/charts/external-secrets-2.11.0.tgz
+        valuesFiles:
+          - values/external-secrets.yaml
+    images:
+      - ghcr.io/external-secrets/external-secrets:v2.11.0

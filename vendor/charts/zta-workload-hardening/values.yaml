@@ -1,0 +1,16 @@
+kyverno:
+  enabled: true
+
+policy:
+  validationFailureAction: "Audit"
+  background: true
+  excludeNamespaces:
+    - "kube-system"
+    - "kube-public"
+    - "kube-node-lease"
+    - "kyverno"
+
+controls:
+  requireResourceRequestsAndLimits: true
+  disallowLatestTag: true
+  requireAlwaysPullImages: false

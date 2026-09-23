@@ -1,0 +1,61 @@
+kind: ZarfPackageConfig
+metadata:
+  name: spectro-observability
+  description: Big-Bang-style metrics and dashboards with optional centralized logging.
+  version: 0.1.0
+
+variables:
+  - name: STORAGE_CLASS
+    description: StorageClass for observability PVCs; empty selects the cluster default.
+    default: ""
+  - name: PROMETHEUS_RETENTION
+    description: Prometheus metric retention period.
+    default: 15d
+  - name: PROMETHEUS_STORAGE_SIZE
+    description: Prometheus PVC size.
+    default: 20Gi
+  - name: GRAFANA_STORAGE_SIZE
+    description: Grafana PVC size.
+    default: 5Gi
+  - name: LOKI_STORAGE_SIZE
+    description: Loki PVC size.
+    default: 20Gi
+
+components:
+  - name: prometheus-grafana
+    description: Pinned upstream equivalent of the Spectro Prometheus-Grafana capability.
+    required: true
+    charts:
+      - name: kube-prometheus-stack
+        namespace: monitoring
+        version: 91.5.0
+        localPath: ../../vendor/charts/kube-prometheus-stack-91.5.0.tgz
+        valuesFiles:
+          - values/prometheus-grafana.yaml
+    images:
+      - docker.io/grafana/grafana:13.2.2-distroless
+      - docker.io/library/busybox:1.38.0
+      - ghcr.io/jkroepke/kube-webhook-certgen:1.8.8
+      - quay.io/kiwigrid/k8s-sidecar:2.11.2
+      - quay.io/prometheus-operator/prometheus-operator:v0.94.0
+      - quay.io/prometheus/node-exporter:v1.12.1-distroless
+      - registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.20.0
+
+  - name: loki
+    description: Optional Spectro community Loki pack content.
+    default: false
+    charts:
+      - name: loki
+        namespace: loki
+        version: 18.5.2
+        localPath: ../../vendor/charts/loki-18.5.2.tgz
+        valuesFiles:
+          - values/loki.yaml
+    images:
+      - docker.io/grafana/loki-canary:3.7.4
+      - docker.io/grafana/loki:3.7.4
+      - docker.io/kiwigrid/k8s-sidecar:2.8.1
+      - docker.io/nginxinc/nginx-unprivileged:1.31-alpine
+      - ghcr.io/jkroepke/access-log-exporter:0.4.6
+      - memcached:1.6.45-alpine
+      - prom/memcached-exporter:v0.16.0

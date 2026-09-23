@@ -1,0 +1,186 @@
+{{- if .Values.examples.enabled }}
+apiVersion: compliance.spectrocloud.com/v1alpha1
+kind: OSCALKyvernoMapping
+metadata:
+  name: {{ .Values.examples.mappingName | quote }}
+  labels:
+    {{- include "oscal-kyverno-operator.labels" . | nindent 4 }}
+spec:
+  mappings:
+    {{- if .Values.controls.requireNamedServiceAccount }}
+    - name: require-named-service-account
+      controlIds:
+        - AC-2
+        - AC-3
+        - AC-6
+      template: require-named-service-account
+      pillar: identity
+      coverage: partial
+      parameters:
+        background: {{ .Values.policy.background }}
+        excludeNamespaces:
+          {{- toYaml .Values.policy.excludeNamespaces | nindent 10 }}
+    {{- end }}
+    {{- if .Values.controls.requirePodTokenOptIn }}
+    - name: require-service-account-token-opt-out
+      controlIds:
+        - AC-6
+        - IA-2
+      template: require-service-account-token-opt-out
+      pillar: identity
+      coverage: partial
+      parameters:
+        background: {{ .Values.policy.background }}
+        excludeNamespaces:
+          {{- toYaml .Values.policy.excludeNamespaces | nindent 10 }}
+    {{- end }}
+    {{- if .Values.controls.requireIdentityOwnerLabel }}
+    - name: require-identity-owner-label
+      controlIds:
+        - AC-2
+        - IR-4
+      template: require-identity-owner-label
+      pillar: identity
+      coverage: partial
+      parameters:
+        background: {{ .Values.policy.background }}
+        identityOwnerLabel: {{ .Values.labels.identityOwner | quote }}
+        excludeNamespaces:
+          {{- toYaml .Values.policy.excludeNamespaces | nindent 10 }}
+    {{- end }}
+    {{- if .Values.controls.requirePodSecurityPosture }}
+    - name: require-pod-security-posture
+      controlIds:
+        - CM-6
+        - CM-7
+        - SI-7
+      template: require-pod-security-posture
+      pillar: devices
+      coverage: partial
+      parameters:
+        background: {{ .Values.policy.background }}
+        podSecurityLevel: {{ .Values.policy.podSecurityLevel | quote }}
+        podSecurityVersion: {{ .Values.policy.podSecurityVersion | quote }}
+        excludeNamespaces:
+          {{- toYaml .Values.policy.excludeNamespaces | nindent 10 }}
+    {{- end }}
+    {{- if .Values.controls.requireResourceRequestsAndLimits }}
+    - name: require-resource-requests-and-limits
+      controlIds:
+        - CM-6
+        - SC-5
+      template: require-resource-requests-and-limits
+      pillar: applications-and-workloads
+      coverage: partial
+      parameters:
+        background: {{ .Values.policy.background }}
+        excludeNamespaces:
+          {{- toYaml .Values.policy.excludeNamespaces | nindent 10 }}
+    {{- end }}
+    {{- if .Values.controls.disallowLatestTag }}
+    - name: disallow-latest-image-tag
+      controlIds:
+        - CM-6
+        - SI-7
+      template: disallow-latest-image-tag
+      pillar: applications-and-workloads
+      coverage: partial
+      parameters:
+        background: {{ .Values.policy.background }}
+        excludeNamespaces:
+          {{- toYaml .Values.policy.excludeNamespaces | nindent 10 }}
+    {{- end }}
+    {{- if .Values.controls.requireAlwaysPullImages }}
+    - name: require-always-pull-images
+      controlIds:
+        - CM-6
+        - SI-7
+      template: require-always-pull-images
+      pillar: applications-and-workloads
+      coverage: partial
+      parameters:
+        background: {{ .Values.policy.background }}
+        excludeNamespaces:
+          {{- toYaml .Values.policy.excludeNamespaces | nindent 10 }}
+    {{- end }}
+    {{- if .Values.controls.requireDataClassification }}
+    - name: require-data-classification
+      controlIds:
+        - RA-2
+        - SC-28
+      template: require-data-classification
+      pillar: data
+      coverage: partial
+      parameters:
+        background: {{ .Values.policy.background }}
+        dataClassificationLabel: {{ .Values.labels.dataClassification | quote }}
+        excludeNamespaces:
+          {{- toYaml .Values.policy.excludeNamespaces | nindent 10 }}
+    {{- end }}
+    {{- if .Values.controls.requireOwnerLabel }}
+    - name: require-data-owner
+      controlIds:
+        - PM-5
+        - SC-28
+      template: require-data-owner
+      pillar: data
+      coverage: partial
+      parameters:
+        background: {{ .Values.policy.background }}
+        dataOwnerLabel: {{ .Values.labels.dataOwner | quote }}
+        excludeNamespaces:
+          {{- toYaml .Values.policy.excludeNamespaces | nindent 10 }}
+    {{- end }}
+    {{- if .Values.controls.requireImmutableSecrets }}
+    - name: require-immutable-secrets
+      controlIds:
+        - CM-6
+        - SC-28
+      template: require-immutable-secrets
+      pillar: data
+      coverage: partial
+      parameters:
+        background: {{ .Values.policy.background }}
+        excludeNamespaces:
+          {{- toYaml .Values.policy.excludeNamespaces | nindent 10 }}
+    {{- end }}
+---
+apiVersion: compliance.spectrocloud.com/v1alpha1
+kind: OSCALDocument
+metadata:
+  name: {{ .Values.examples.documentName | quote }}
+  labels:
+    {{- include "oscal-kyverno-operator.labels" . | nindent 4 }}
+spec:
+  preset: {{ .Values.policy.validationFailureAction | lower | quote }}
+  mappingRef:
+    name: {{ .Values.examples.mappingName | quote }}
+  output:
+    scope: Cluster
+  {{- if .Values.examples.controlScopes.enabled }}
+  controlScopes:
+    {{- toYaml .Values.examples.controlScopes.scopes | nindent 4 }}
+  {{- end }}
+  oscal:
+    profile:
+      uuid: "11111111-1111-4111-8111-111111111111"
+      metadata:
+        title: "Zero Trust Kubernetes OSCAL Baseline"
+        version: "0.1.0"
+      imports:
+        - href: "#nist-sp-800-53"
+          include-controls:
+            - with-ids:
+                - AC-2
+                - AC-3
+                - AC-6
+                - IA-2
+                - IR-4
+                - CM-6
+                - CM-7
+                - SI-7
+                - SC-5
+                - RA-2
+                - SC-28
+                - PM-5
+{{- end }}

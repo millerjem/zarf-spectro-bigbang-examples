@@ -1,0 +1,108 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- if or .Values.networkPolicy.defaultDenyIngress .Values.networkPolicy.defaultDenyEgress }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: zta-default-deny
+  namespace: {{ .Values.namespace.name | quote }}
+  labels:
+    {{- include "zta-network-microsegmentation.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    {{- if .Values.networkPolicy.defaultDenyIngress }}
+    - Ingress
+    {{- end }}
+    {{- if .Values.networkPolicy.defaultDenyEgress }}
+    - Egress
+    {{- end }}
+---
+{{- end }}
+{{- if .Values.dnsEgress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: zta-allow-dns-egress
+  namespace: {{ .Values.namespace.name | quote }}
+  labels:
+    {{- include "zta-network-microsegmentation.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.dnsEgress.namespace | quote }}
+      ports:
+        {{- range .Values.dnsEgress.ports }}
+        - protocol: UDP
+          port: {{ . }}
+        - protocol: TCP
+          port: {{ . }}
+        {{- end }}
+---
+{{- end }}
+{{- if .Values.sameNamespaceTraffic.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: zta-allow-same-namespace
+  namespace: {{ .Values.namespace.name | quote }}
+  labels:
+    {{- include "zta-network-microsegmentation.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector: {}
+  egress:
+    - to:
+        - podSelector: {}
+---
+{{- end }}
+{{- if .Values.allowedIngressNamespaces }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: zta-allow-selected-namespace-ingress
+  namespace: {{ .Values.namespace.name | quote }}
+  labels:
+    {{- include "zta-network-microsegmentation.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        {{- range .Values.allowedIngressNamespaces }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ . | quote }}
+        {{- end }}
+---
+{{- end }}
+{{- if .Values.allowedEgressCIDRs }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: zta-allow-selected-cidr-egress
+  namespace: {{ .Values.namespace.name | quote }}
+  labels:
+    {{- include "zta-network-microsegmentation.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        {{- range .Values.allowedEgressCIDRs }}
+        - ipBlock:
+            cidr: {{ . | quote }}
+        {{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,13 @@
+namespace:
+  name: "###ZARF_VAR_ZTA_TARGET_NAMESPACE###"
+  create: true
+networkPolicy:
+  enabled: true
+  defaultDenyIngress: true
+  defaultDenyEgress: true
+dnsEgress:
+  enabled: true
+  namespace: kube-system
+sameNamespaceTraffic:
+  enabled: true
+

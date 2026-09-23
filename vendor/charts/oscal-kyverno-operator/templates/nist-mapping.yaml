@@ -1,0 +1,3 @@
+{{- if .Values.nistMappings.enabled }}
+{{ .Files.Get "files/nist-sp800-171-172-mapping.yaml" }}
+{{- end }}

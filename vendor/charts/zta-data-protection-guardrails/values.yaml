@@ -1,0 +1,20 @@
+kyverno:
+  enabled: true
+
+policy:
+  validationFailureAction: "Audit"
+  background: true
+  excludeNamespaces:
+    - "kube-system"
+    - "kube-public"
+    - "kube-node-lease"
+    - "kyverno"
+
+controls:
+  requireDataClassification: true
+  requireOwnerLabel: true
+  requireImmutableSecrets: false
+
+labels:
+  dataClassification: "zta.spectrocloud.com/data-classification"
+  dataOwner: "zta.spectrocloud.com/data-owner"

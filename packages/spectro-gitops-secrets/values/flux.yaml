@@ -1,0 +1,7 @@
+installCRDs: true
+clusterDomain: "###ZARF_VAR_CLUSTER_DOMAIN###"
+multitenancy:
+  enabled: ###ZARF_VAR_FLUX_MULTITENANCY###
+  defaultServiceAccount: default
+  privileged: false
+

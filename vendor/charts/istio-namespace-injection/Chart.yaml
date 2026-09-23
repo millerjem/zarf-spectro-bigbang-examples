@@ -1,0 +1,8 @@
+apiVersion: v2
+name: istio-namespace-injection
+description: Manage a namespace with optional Istio sidecar injection.
+type: application
+version: 0.1.1
+appVersion: "0.1.1"
+annotations:
+  org.opencontainers.image.source: https://github.com/millerjem/zero-trust-palette-packs
